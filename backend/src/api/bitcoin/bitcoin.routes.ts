@@ -109,7 +109,7 @@ class BitcoinRoutes {
       .get(config.MEMPOOL.API_URL_PREFIX + 'blocks-bulk/:from/:to', this.getBlocksByBulk.bind(this))
     ;
 
-    if (config.MEMPOOL.BACKEND !== 'esplora') {
+    // if (config.MEMPOOL.BACKEND !== 'esplora') {
       app
         .get(config.MEMPOOL.API_URL_PREFIX + 'mempool', this.getMempool)
         .get(config.MEMPOOL.API_URL_PREFIX + 'mempool/txids', this.getMempoolTxIds)
@@ -132,7 +132,7 @@ class BitcoinRoutes {
         .get(config.MEMPOOL.API_URL_PREFIX + 'address/:address/txs/chain/:txId', this.getAddressTransactions)
         .get(config.MEMPOOL.API_URL_PREFIX + 'address-prefix/:prefix', this.getAddressPrefix)
       ;
-    }
+    // }
   }
 
 
