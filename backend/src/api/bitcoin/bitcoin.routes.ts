@@ -1,4 +1,4 @@
-import { Application, Request, Response } from 'express';
+import {Application, Request, Response} from 'express';
 import axios from 'axios';
 import * as bitcoinjs from 'bitcoinjs-lib';
 import config from '../../config';
@@ -6,13 +6,13 @@ import websocketHandler from '../websocket-handler';
 import mempool from '../mempool';
 import feeApi from '../fee-api';
 import mempoolBlocks from '../mempool-blocks';
-import bitcoinApi, { bitcoinCoreApi } from './bitcoin-api-factory';
-import { Common } from '../common';
+import bitcoinApi, {bitcoinCoreApi} from './bitcoin-api-factory';
+import {Common} from '../common';
 import backendInfo from '../backend-info';
 import transactionUtils from '../transaction-utils';
-import { IEsploraApi } from './esplora-api.interface';
+import {IEsploraApi} from './esplora-api.interface';
 import loadingIndicators from '../loading-indicators';
-import { TransactionExtended } from '../../mempool.interfaces';
+import {TransactionExtended} from '../../mempool.interfaces';
 import logger from '../../logger';
 import blocks from '../blocks';
 import bitcoinClient from './bitcoin-client';
@@ -207,14 +207,11 @@ class BitcoinRoutes {
   private async $getCpfpTxsSummary(req: Request, res: Response) {
     const txids = req.body;
     if (Array.isArray(txids)) {
-      const hasInvalid = txids.some((txid) => {
+      for (let txid of txids) {
         if (!/^[a-fA-F0-9]{64}$/.test(txid)) {
-          return true;
+          res.status(501).send(`Invalid transaction ID: ${txid}.`);
+          return;
         }
-      });
-      if (hasInvalid) {
-        res.status(501).send(`Invalid transaction ID.`);
-        return;
       }
       const pool = mempool.getMempool();
       const ret: {
