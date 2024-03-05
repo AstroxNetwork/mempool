@@ -12,7 +12,7 @@ import backendInfo from '../backend-info';
 import transactionUtils from '../transaction-utils';
 import {IEsploraApi} from './esplora-api.interface';
 import loadingIndicators from '../loading-indicators';
-import {TransactionExtended} from '../../mempool.interfaces';
+import {CpfpInfo, TransactionExtended} from '../../mempool.interfaces';
 import logger from '../../logger';
 import blocks from '../blocks';
 import bitcoinClient from './bitcoin-client';
@@ -110,28 +110,28 @@ class BitcoinRoutes {
     ;
 
     // if (config.MEMPOOL.BACKEND !== 'esplora') {
-      app
-        .get(config.MEMPOOL.API_URL_PREFIX + 'mempool', this.getMempool)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'mempool/txids', this.getMempoolTxIds)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'mempool/recent', this.getRecentMempoolTransactions)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'tx/:txId', this.getTransaction)
-        .post(config.MEMPOOL.API_URL_PREFIX + 'tx', this.$postTransaction)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'tx/:txId/hex', this.getRawTransaction)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'tx/:txId/status', this.getTransactionStatus)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'tx/:txId/outspends', this.getTransactionOutspends)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/header', this.getBlockHeader)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'blocks/tip/height', this.getBlockTipHeight)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'blocks/tip/hash', this.getBlockTipHash)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/raw', this.getRawBlock)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/txids', this.getTxIdsForBlock)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/txs', this.getBlockTransactions)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/txs/:index', this.getBlockTransactions)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'block-height/:height', this.getBlockHeight)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'address/:address', this.getAddress)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'address/:address/txs', this.getAddressTransactions)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'address/:address/txs/chain/:txId', this.getAddressTransactions)
-        .get(config.MEMPOOL.API_URL_PREFIX + 'address-prefix/:prefix', this.getAddressPrefix)
-      ;
+    app
+      .get(config.MEMPOOL.API_URL_PREFIX + 'mempool', this.getMempool)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'mempool/txids', this.getMempoolTxIds)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'mempool/recent', this.getRecentMempoolTransactions)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'tx/:txId', this.getTransaction)
+      .post(config.MEMPOOL.API_URL_PREFIX + 'tx', this.$postTransaction)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'tx/:txId/hex', this.getRawTransaction)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'tx/:txId/status', this.getTransactionStatus)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'tx/:txId/outspends', this.getTransactionOutspends)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/header', this.getBlockHeader)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'blocks/tip/height', this.getBlockTipHeight)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'blocks/tip/hash', this.getBlockTipHash)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/raw', this.getRawBlock)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/txids', this.getTxIdsForBlock)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/txs', this.getBlockTransactions)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'block/:hash/txs/:index', this.getBlockTransactions)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'block-height/:height', this.getBlockHeight)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'address/:address', this.getAddress)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'address/:address/txs', this.getAddressTransactions)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'address/:address/txs/chain/:txId', this.getAddressTransactions)
+      .get(config.MEMPOOL.API_URL_PREFIX + 'address-prefix/:prefix', this.getAddressPrefix)
+    ;
     // }
   }
 
@@ -204,10 +204,26 @@ class BitcoinRoutes {
     }
   }
 
+
   private async $getCpfpTxsSummary(req: Request, res: Response) {
     const txids = req.body;
+
+    const toSummary = (txid: string, item: CpfpInfo | TransactionExtended) => {
+      let descendants;
+      if (!item.descendants && item.bestDescendant) {
+        descendants = 1;
+      } else {
+        descendants = item.descendants?.length || 0;
+      }
+      return {
+        txid: txid,
+        ancestors: item.ancestors?.length || 0,
+        descendants: descendants
+      };
+    };
+
     if (Array.isArray(txids)) {
-      for (let txid of txids) {
+      for (const txid of txids) {
         if (!/^[a-fA-F0-9]{64}$/.test(txid)) {
           res.status(501).send(`Invalid transaction ID: ${txid}.`);
           return;
@@ -223,30 +239,18 @@ class BitcoinRoutes {
         const tx = pool[txid];
         if (tx) {
           if (tx?.cpfpChecked) {
-            ret.push({
-              txid: txid,
-              ancestors: tx.ancestors?.length || 0,
-              descendants: tx.descendants?.length || 0
-            });
+            ret.push(toSummary(txid, tx));
             continue;
           }
           const cpfpInfo = Common.setRelativesAndGetCpfpInfo(tx, pool);
-          ret.push({
-            txid: txid,
-            ancestors: cpfpInfo.ancestors?.length || 0,
-            descendants: cpfpInfo.descendants?.length || 0
-          });
+          ret.push(toSummary(txid, cpfpInfo));
         } else {
           let cpfpInfo;
           if (config.DATABASE.ENABLED) {
             cpfpInfo = await transactionRepository.$getCpfpInfo(txid);
           }
           if (cpfpInfo) {
-            ret.push({
-              txid: txid,
-              ancestors: cpfpInfo.ancestors?.length || 0,
-              descendants: cpfpInfo.descendants?.length || 0
-            });
+            ret.push(toSummary(txid, cpfpInfo));
           } else {
             ret.push({
               txid: txid,
