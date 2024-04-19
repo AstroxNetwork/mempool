@@ -1,5 +1,5 @@
 import express from 'express';
-import cors from "cors";
+import cors from 'cors';
 import { Application, Request, Response, NextFunction } from 'express';
 import * as http from 'http';
 import * as WebSocket from 'ws';
@@ -108,8 +108,7 @@ class Server {
       .use(express.urlencoded({ extended: true }))
       .use(express.text({ type: ['text/plain', 'application/base64'] }))
       .use(express.json())
-      .use(cors())
-      ;
+      .use(cors);
 
     if (config.DATABASE.ENABLED) {
       await priceUpdater.$initializeLatestPriceWithDb();
