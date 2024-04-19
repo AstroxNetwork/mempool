@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from "cors";
 import { Application, Request, Response, NextFunction } from 'express';
 import * as http from 'http';
 import * as WebSocket from 'ws';
@@ -107,6 +108,7 @@ class Server {
       .use(express.urlencoded({ extended: true }))
       .use(express.text({ type: ['text/plain', 'application/base64'] }))
       .use(express.json())
+      .use(cors())
       ;
 
     if (config.DATABASE.ENABLED) {
@@ -245,7 +247,7 @@ class Server {
     priceUpdater.setRatesChangedCallback(websocketHandler.handleNewConversionRates.bind(websocketHandler));
     loadingIndicators.setProgressChangedCallback(websocketHandler.handleLoadingChanged.bind(websocketHandler));
   }
-  
+
   setUpHttpApiRoutes(): void {
     bitcoinRoutes.initRoutes(this.app);
     if (config.STATISTICS.ENABLED && config.DATABASE.ENABLED && config.MEMPOOL.ENABLED) {
